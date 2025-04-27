@@ -1,4 +1,5 @@
 import logging
+import os
 
 def get_logger(name: str = 'ytmusicapi'):
     logger = logging.getLogger(name)
@@ -8,4 +9,7 @@ def get_logger(name: str = 'ytmusicapi'):
         handler.setFormatter(formatter)
         logger.addHandler(handler)
     logger.setLevel(logging.INFO)
-    return logger 
+    return logger
+
+def get_debug_mode():
+    return os.getenv('DEBUG_MODE', 'false').lower() in ('1', 'true', 'yes') 
