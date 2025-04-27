@@ -48,28 +48,52 @@ def get_previous_month_range():
     end = last_month.replace(day=last_month.day)
     return start, end
 
+def parse_played_date(played_str, target_year, target_month):
+    today = datetime.today()
+    if played_str == "Today":
+        return today, (today.year == target_year and today.month == target_month)
+    elif played_str == "Yesterday":
+        dt = today - timedelta(days=1)
+        return dt, (dt.year == target_year and dt.month == target_month)
+    elif played_str == "Last week":
+        dt = today - timedelta(days=7)
+        return dt, (dt.year == target_year and dt.month == target_month)
+    # Try full month and year (e.g., 'February 2025')
+    try:
+        dt = datetime.strptime(played_str, "%B %Y")
+        return dt, (dt.year == target_year and dt.month == target_month)
+    except Exception:
+        pass
+    # Try abbreviated month, day, year (e.g., 'Mar 15, 2025')
+    try:
+        dt = datetime.strptime(played_str, "%b %d, %Y")
+        return dt, (dt.year == target_year and dt.month == target_month)
+    except Exception:
+        return None, False
+
 def get_songs_for_month(ytmusic, like_tracker, start, end):
-    # Update LikeTracker with all current liked songs
     liked = ytmusic.get_liked_songs(5000)
     like_tracker.update_likes(liked.get('tracks', []))
-    # Songs liked in the previous month
     liked_ids = set(like_tracker.get_liked_in_month(start.year, start.month))
-    # Songs played in the previous month (not disliked)
+    logger.info(f"Liked IDs in month: {len(liked_ids)}; sample: {list(liked_ids)[:5]}")
     history = ytmusic.get_history()
     played_ids = set()
     for item in history:
         played = item.get('played')
         video_id = item.get('videoId')
         like_status = item.get('likeStatus', 'INDIFFERENT')
+        logger.info(f"History item: played={played}, video_id={video_id}, like_status={like_status}")
         if played and video_id and like_status != 'DISLIKE':
-            try:
-                played_date = datetime.strptime(played, "%b %d, %Y")
-                if start <= played_date <= end:
-                    played_ids.add(video_id)
-            except Exception:
+            played_date, matches = parse_played_date(played, start.year, start.month)
+            if played_date is None:
+                logger.warning(f"Failed to parse played date '{played}' for video_id {video_id}")
                 continue
-    # Union of played in month and liked in month
-    return list(liked_ids.union(played_ids))
+            if matches:
+                played_ids.add(video_id)
+    logger.info(f"Played IDs in month: {len(played_ids)}; sample: {list(played_ids)[:5]}")
+    all_ids = liked_ids.union(played_ids)
+    logger.info(f"Total unique songs for playlist: {len(all_ids)}; sample: {list(all_ids)[:5]}")
+    return list(all_ids)
 
 def find_existing_playlist(ytmusic, title):
     playlists = ytmusic.get_library_playlists(100)
