@@ -21,3 +21,4 @@ auth/headers_auth.json
 /ytmusicapi
 /docs
 *.db
+*.db-journal

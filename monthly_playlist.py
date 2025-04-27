@@ -4,12 +4,11 @@ from ytmusicapi import YTMusic
 from dotenv import load_dotenv
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-from like_tracker import LikeTracker
 from src.auth import AuthHelper
 from utils.logger import get_logger, get_debug_mode
 from utils.dateparser import get_month_range, get_previous_month_range
 from src.playlists import find_existing_playlist
-from src.ytmusic import get_songs_for_month
+from src.ytmusic import get_songs_for_month, LikeTracker
 
 load_dotenv()
 
