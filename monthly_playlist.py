@@ -7,7 +7,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 from like_tracker import LikeTracker
 from src.auth import AuthHelper
-from ytmusicapi.utils.logger import get_logger, get_debug_mode
+from utils.logger import get_logger, get_debug_mode
 
 load_dotenv()
 
