@@ -18,3 +18,5 @@ dist
 *.xml
 auth/headers_auth.json
 .env
+/ytmusicapi
+/docs
