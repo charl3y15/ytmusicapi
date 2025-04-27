@@ -55,8 +55,8 @@ def main():
         if playlist_id:
             logger.info(f"Playlist '{playlist_title}' exists. Checking for missing songs...")
             playlist = ytmusic.get_playlist(playlist_id, limit=None)
-            current_ids = set(track['videoId'] for track in playlist.get('tracks', []) if 'videoId' in track)
-            to_add = set(video_ids) - current_ids
+            current_ids = set(str(track['videoId']) for track in playlist.get('tracks', []) if 'videoId' in track)
+            to_add = set(str(vid) for vid in video_ids) - current_ids
             logger.info(f"Songs already in playlist: {len(current_ids)}")
             logger.info(f"Songs to add: {len(to_add)}")
             if to_add:
