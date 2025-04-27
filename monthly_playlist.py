@@ -38,9 +38,17 @@ def get_previous_month_range():
     return start, end
 
 def get_songs_for_month(ytmusic, start, end):
+    # Get all liked songs (no date info, so just for status)
+    liked = ytmusic.get_liked_songs(5000)
+    liked_ids = set()
+    for track in liked.get('tracks', []):
+        video_id = track.get('videoId')
+        like_status = track.get('likeStatus', 'INDIFFERENT')
+        if video_id and like_status == 'LIKE':
+            liked_ids.add(video_id)
     # Get play history (with played date)
     history = ytmusic.get_history()
-    video_ids = set()
+    played_ids = set()
     for item in history:
         played = item.get('played')
         video_id = item.get('videoId')
@@ -49,17 +57,11 @@ def get_songs_for_month(ytmusic, start, end):
             try:
                 played_date = datetime.strptime(played, "%b %d, %Y")
                 if start <= played_date <= end:
-                    video_ids.add(video_id)
+                    played_ids.add(video_id)
             except Exception:
                 continue
-    # Get liked songs (no date, so just add if not disliked)
-    liked = ytmusic.get_liked_songs(5000)  # Large limit to get all
-    for track in liked.get('tracks', []):
-        video_id = track.get('videoId')
-        like_status = track.get('likeStatus', 'INDIFFERENT')
-        if video_id and like_status == 'LIKE':
-            video_ids.add(video_id)
-    return list(video_ids)
+    # Union of liked and played (excluding any disliked)
+    return list(liked_ids.union(played_ids))
 
 def find_existing_playlist(ytmusic, title):
     playlists = ytmusic.get_library_playlists(100)
