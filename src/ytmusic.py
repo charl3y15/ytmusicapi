@@ -29,13 +29,17 @@ def get_songs_for_month(ytmusic, like_tracker, start, end):
     history = ytmusic.get_history()
     played_ids = set()
     played_count = 0
+    disliked_count = 0
     for item in history:
         played = item.get('played')
         video_id = item.get('videoId')
         like_status = item.get('likeStatus', 'INDIFFERENT')
         if debug_mode:
             logger.info(f"History item: played={played}, video_id={video_id}, like_status={like_status}")
-        if played and video_id and like_status != 'DISLIKE':
+        if played and video_id:
+            if like_status == 'DISLIKE':
+                disliked_count += 1
+                continue
             played_date, matches = parse_played_date(played, start.year, start.month)
             if played_date is None:
                 if debug_mode:
@@ -45,6 +49,7 @@ def get_songs_for_month(ytmusic, like_tracker, start, end):
                 played_ids.add(video_id)
                 played_count += 1
     logger.info(f"Played IDs in month: {played_count}")
+    logger.info(f"Disliked songs in month: {disliked_count}")
     all_ids = played_ids.union(liked_ids)
     logger.info(f"Total unique songs for playlist (played or liked, not disliked): {len(all_ids)}")
     return list(all_ids) 
