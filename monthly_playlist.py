@@ -139,16 +139,25 @@ def main():
         playlist_desc = f"Songs played or liked in {month_name} {year} (auto-generated)"
         logger.info(f"Collecting songs for {playlist_title}")
         video_ids = get_songs_for_month(ytmusic, like_tracker, start, end)
-        if not video_ids:
-            logger.info("No songs found for selected month. Skipping playlist creation.")
-        else:
-            playlist_id = find_existing_playlist(ytmusic, playlist_title)
-            if playlist_id:
-                logger.info(f"Playlist '{playlist_title}' exists. Adding songs...")
-                ytmusic.add_playlist_items(playlist_id, video_ids)
+
+        playlist_id = find_existing_playlist(ytmusic, playlist_title)
+        if playlist_id:
+            logger.info(f"Playlist '{playlist_title}' exists. Checking for missing songs...")
+            playlist = ytmusic.get_playlist(playlist_id, limit=None)
+            current_ids = set(track['videoId'] for track in playlist.get('tracks', []) if 'videoId' in track)
+            to_add = set(video_ids) - current_ids
+            logger.info(f"Songs to add: {len(to_add)}")
+            if to_add:
+                ytmusic.add_playlist_items(playlist_id, list(to_add))
+                logger.info(f"Added {len(to_add)} new songs to playlist '{playlist_title}'.")
             else:
+                logger.info("No new songs to add to the playlist.")
+        else:
+            if video_ids:
                 logger.info(f"Creating playlist '{playlist_title}' with {len(video_ids)} songs...")
                 ytmusic.create_playlist(playlist_title, playlist_desc, playlist_privacy, video_ids=video_ids)
+            else:
+                logger.info("No songs found for selected month. Skipping playlist creation.")
         if run_for:
             break  # Only run once if RUN_FOR is set
         logger.info(f"Sleeping for {run_every} days...")
