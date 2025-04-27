@@ -57,6 +57,7 @@ def main():
             playlist = ytmusic.get_playlist(playlist_id, limit=None)
             current_ids = set(track['videoId'] for track in playlist.get('tracks', []) if 'videoId' in track)
             to_add = set(video_ids) - current_ids
+            logger.info(f"Songs already in playlist: {len(current_ids)}")
             logger.info(f"Songs to add: {len(to_add)}")
             if to_add:
                 ytmusic.add_playlist_items(playlist_id, list(to_add))
