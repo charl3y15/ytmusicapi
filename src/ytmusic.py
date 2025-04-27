@@ -1,4 +1,4 @@
-from logger import get_debug_mode
+from utils.logger import get_debug_mode
 from utils.dateparser import parse_played_date
 
 def get_songs_for_month(ytmusic, like_tracker, start, end):
