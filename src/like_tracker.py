@@ -14,14 +14,15 @@ class LikeTracker:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS liked_songs (
-                    video_id TEXT PRIMARY KEY,
-                    liked_date TEXT
+                    video_id TEXT,
+                    liked_date TEXT,
+                    PRIMARY KEY (video_id, liked_date)
                 )
             ''')
 
     def update_likes(self, liked_songs: List[Dict]):
         """
-        Add new liked songs to the database with the current date if not already present.
+        Add new liked songs to the database with the current date if not already present for that date.
         liked_songs: list of dicts with at least 'videoId' key
         """
         now = datetime.now().strftime('%Y-%m-%d')
@@ -30,7 +31,7 @@ class LikeTracker:
                 video_id = song.get('videoId')
                 if not video_id:
                     continue
-                # Insert if not exists
+                # Insert if not exists for this date
                 conn.execute('''
                     INSERT OR IGNORE INTO liked_songs (video_id, liked_date)
                     VALUES (?, ?)
@@ -47,7 +48,7 @@ class LikeTracker:
             end = datetime(year, month + 1, 1)
         with sqlite3.connect(self.db_path) as conn:
             cur = conn.execute('''
-                SELECT video_id FROM liked_songs
+                SELECT DISTINCT video_id FROM liked_songs
                 WHERE liked_date >= ? AND liked_date < ?
             ''', (start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')))
             return [row[0] for row in cur.fetchall()] 

@@ -99,8 +99,8 @@ def get_songs_for_month(ytmusic, like_tracker, start, end):
                 played_ids.add(video_id)
                 played_count += 1
     logger.info(f"Played IDs in month: {played_count}")
-    all_ids = liked_ids.union(played_ids)
-    logger.info(f"Total unique songs for playlist: {len(all_ids)}")
+    all_ids = liked_ids.intersection(played_ids)
+    logger.info(f"Total unique songs for playlist (played AND liked): {len(all_ids)}")
     return list(all_ids)
 
 def find_existing_playlist(ytmusic, title):
