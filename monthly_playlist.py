@@ -2,12 +2,15 @@ import os
 import time
 from datetime import datetime, timedelta
 from ytmusicapi import YTMusic
-import logging
 from dotenv import load_dotenv
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+from like_tracker import LikeTracker
+from ytmusicapi.utils.logger import get_logger
 
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO)
+logger = get_logger()
 
 def get_env_var(name, default=None, required=False):
     value = os.getenv(name, default)
@@ -29,6 +32,14 @@ def resolve_auth_file(auth_file):
         return auth_path
     raise RuntimeError(f"Auth file not found: {auth_file}")
 
+def get_month_range(year: int, month: int):
+    start = datetime(year, month, 1)
+    if month == 12:
+        end = datetime(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        end = datetime(year, month + 1, 1) - timedelta(days=1)
+    return start, end
+
 def get_previous_month_range():
     today = datetime.today()
     first = today.replace(day=1)
@@ -37,16 +48,13 @@ def get_previous_month_range():
     end = last_month.replace(day=last_month.day)
     return start, end
 
-def get_songs_for_month(ytmusic, start, end):
-    # Get all liked songs (no date info, so just for status)
+def get_songs_for_month(ytmusic, like_tracker, start, end):
+    # Update LikeTracker with all current liked songs
     liked = ytmusic.get_liked_songs(5000)
-    liked_ids = set()
-    for track in liked.get('tracks', []):
-        video_id = track.get('videoId')
-        like_status = track.get('likeStatus', 'INDIFFERENT')
-        if video_id and like_status == 'LIKE':
-            liked_ids.add(video_id)
-    # Get play history (with played date)
+    like_tracker.update_likes(liked.get('tracks', []))
+    # Songs liked in the previous month
+    liked_ids = set(like_tracker.get_liked_in_month(start.year, start.month))
+    # Songs played in the previous month (not disliked)
     history = ytmusic.get_history()
     played_ids = set()
     for item in history:
@@ -60,7 +68,7 @@ def get_songs_for_month(ytmusic, start, end):
                     played_ids.add(video_id)
             except Exception:
                 continue
-    # Union of liked and played (excluding any disliked)
+    # Union of played in month and liked in month
     return list(liked_ids.union(played_ids))
 
 def find_existing_playlist(ytmusic, title):
@@ -75,27 +83,42 @@ def main():
     auth_file = resolve_auth_file(auth_file_env)
     run_every = int(get_env_var('RUN_EVERY', 30))
     playlist_privacy = get_env_var('PLAYLIST_PRIVACY', 'PRIVATE')
+    run_for = get_env_var('RUN_FOR', None)
     ytmusic = YTMusic(auth_file)
+    like_tracker = LikeTracker()
 
     while True:
-        start, end = get_previous_month_range()
+        if run_for:
+            # Parse MM/YYYY
+            try:
+                month_str, year_str = run_for.split('/')
+                month = int(month_str)
+                year = int(year_str)
+                start, end = get_month_range(year, month)
+            except Exception:
+                raise RuntimeError("RUN_FOR must be in MM/YYYY format, e.g. 05/2025 for May 2025")
+        else:
+            start, end = get_previous_month_range()
+            month = start.month
+            year = start.year
         month_name = start.strftime('%B')
-        year = start.year
         playlist_title = f"{month_name} {year}"
         playlist_desc = f"Songs played or liked in {month_name} {year} (auto-generated)"
-        logging.info(f"Collecting songs for {playlist_title}")
-        video_ids = get_songs_for_month(ytmusic, start, end)
+        logger.info(f"Collecting songs for {playlist_title}")
+        video_ids = get_songs_for_month(ytmusic, like_tracker, start, end)
         if not video_ids:
-            logging.info("No songs found for previous month. Skipping playlist creation.")
+            logger.info("No songs found for selected month. Skipping playlist creation.")
         else:
             playlist_id = find_existing_playlist(ytmusic, playlist_title)
             if playlist_id:
-                logging.info(f"Playlist '{playlist_title}' exists. Adding songs...")
+                logger.info(f"Playlist '{playlist_title}' exists. Adding songs...")
                 ytmusic.add_playlist_items(playlist_id, video_ids)
             else:
-                logging.info(f"Creating playlist '{playlist_title}' with {len(video_ids)} songs...")
+                logger.info(f"Creating playlist '{playlist_title}' with {len(video_ids)} songs...")
                 ytmusic.create_playlist(playlist_title, playlist_desc, playlist_privacy, video_ids=video_ids)
-        logging.info(f"Sleeping for {run_every} days...")
+        if run_for:
+            break  # Only run once if RUN_FOR is set
+        logger.info(f"Sleeping for {run_every} days...")
         time.sleep(run_every * 24 * 60 * 60)
 
 if __name__ == "__main__":
