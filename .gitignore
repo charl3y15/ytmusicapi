@@ -20,3 +20,4 @@ auth/headers_auth.json
 .env
 /ytmusicapi
 /docs
+*.db
