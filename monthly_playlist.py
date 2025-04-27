@@ -44,7 +44,7 @@ def main():
             start, end = get_previous_month_range()
             month = start.month
             year = start.year
-        logger.info(f"RUN_FOR: {run_for}, Running for month: {month} year: {year}")
+        logger.info(f"RUN_FOR: {run_for}")
         month_name = start.strftime('%B')
         playlist_title = f"{month_name} {year}"
         playlist_desc = f"Songs played or liked in {month_name} {year} (auto-generated)"
@@ -63,6 +63,17 @@ def main():
                 logger.info(f"Added {len(to_add)} new songs to playlist '{playlist_title}'.")
             else:
                 logger.info("No new songs to add to the playlist.")
+
+            # Remove disliked songs from the playlist
+            disliked_tracks = [
+                {'videoId': track['videoId'], 'setVideoId': track['setVideoId']}
+                for track in playlist.get('tracks', [])
+                if track.get('likeStatus') == 'DISLIKE' and 'setVideoId' in track
+            ]
+            if disliked_tracks:
+                logger.info(f"Removing {len(disliked_tracks)} disliked songs from playlist '{playlist_title}'.")
+                ytmusic.remove_playlist_items(playlist_id, disliked_tracks)
+                logger.info(f"Removed {len(disliked_tracks)} disliked songs from playlist '{playlist_title}'.")
         else:
             if video_ids:
                 logger.info(f"Creating playlist '{playlist_title}' with {len(video_ids)} songs...")
