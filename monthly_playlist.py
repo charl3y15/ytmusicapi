@@ -3,6 +3,9 @@ import time
 from datetime import datetime, timedelta
 from ytmusicapi import YTMusic
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 
@@ -11,6 +14,20 @@ def get_env_var(name, default=None, required=False):
     if required and value is None:
         raise RuntimeError(f"Missing required environment variable: {name}")
     return value
+
+def resolve_auth_file(auth_file):
+    # If absolute path or file exists as given, use it
+    if os.path.isabs(auth_file) and os.path.exists(auth_file):
+        return auth_file
+    # Try relative to current working directory
+    if os.path.exists(auth_file):
+        return auth_file
+    # Try in 'auth' directory relative to script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    auth_path = os.path.join(script_dir, 'auth', os.path.basename(auth_file))
+    if os.path.exists(auth_path):
+        return auth_path
+    raise RuntimeError(f"Auth file not found: {auth_file}")
 
 def get_previous_month_range():
     today = datetime.today()
@@ -52,7 +69,8 @@ def find_existing_playlist(ytmusic, title):
     return None
 
 def main():
-    auth_file = get_env_var('YTMUSIC_AUTH_FILE', required=True)
+    auth_file_env = get_env_var('YTMUSIC_AUTH_FILE', required=True)
+    auth_file = resolve_auth_file(auth_file_env)
     run_every = int(get_env_var('RUN_EVERY', 30))
     playlist_privacy = get_env_var('PLAYLIST_PRIVACY', 'PRIVATE')
     ytmusic = YTMusic(auth_file)

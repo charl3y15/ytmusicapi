@@ -16,3 +16,4 @@ dist
 .venv
 *.log
 *.xml
+auth/headers_auth.json
