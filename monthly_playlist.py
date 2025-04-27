@@ -18,6 +18,9 @@ def get_env_var(name, default=None, required=False):
         raise RuntimeError(f"Missing required environment variable: {name}")
     return value
 
+def get_debug_mode():
+    return os.getenv('DEBUG_MODE', 'false').lower() in ('1', 'true', 'yes')
+
 def resolve_auth_file(auth_file):
     # If absolute path or file exists as given, use it
     if os.path.isabs(auth_file) and os.path.exists(auth_file):
@@ -72,27 +75,32 @@ def parse_played_date(played_str, target_year, target_month):
         return None, False
 
 def get_songs_for_month(ytmusic, like_tracker, start, end):
+    debug_mode = get_debug_mode()
     liked = ytmusic.get_liked_songs(5000)
     like_tracker.update_likes(liked.get('tracks', []))
     liked_ids = set(like_tracker.get_liked_in_month(start.year, start.month))
-    logger.info(f"Liked IDs in month: {len(liked_ids)}; sample: {list(liked_ids)[:5]}")
+    logger.info(f"Liked IDs in month: {len(liked_ids)}")
     history = ytmusic.get_history()
     played_ids = set()
+    played_count = 0
     for item in history:
         played = item.get('played')
         video_id = item.get('videoId')
         like_status = item.get('likeStatus', 'INDIFFERENT')
-        logger.info(f"History item: played={played}, video_id={video_id}, like_status={like_status}")
+        if debug_mode:
+            logger.info(f"History item: played={played}, video_id={video_id}, like_status={like_status}")
         if played and video_id and like_status != 'DISLIKE':
             played_date, matches = parse_played_date(played, start.year, start.month)
             if played_date is None:
-                logger.warning(f"Failed to parse played date '{played}' for video_id {video_id}")
+                if debug_mode:
+                    logger.warning(f"Failed to parse played date '{played}' for video_id {video_id}")
                 continue
             if matches:
                 played_ids.add(video_id)
-    logger.info(f"Played IDs in month: {len(played_ids)}; sample: {list(played_ids)[:5]}")
+                played_count += 1
+    logger.info(f"Played IDs in month: {played_count}")
     all_ids = liked_ids.union(played_ids)
-    logger.info(f"Total unique songs for playlist: {len(all_ids)}; sample: {list(all_ids)[:5]}")
+    logger.info(f"Total unique songs for playlist: {len(all_ids)}")
     return list(all_ids)
 
 def find_existing_playlist(ytmusic, title):
@@ -125,6 +133,7 @@ def main():
             start, end = get_previous_month_range()
             month = start.month
             year = start.year
+        logger.info(f"RUN_FOR: {run_for}, Running for month: {month} year: {year}")
         month_name = start.strftime('%B')
         playlist_title = f"{month_name} {year}"
         playlist_desc = f"Songs played or liked in {month_name} {year} (auto-generated)"
