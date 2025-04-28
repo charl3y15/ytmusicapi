@@ -49,9 +49,12 @@ def get_songs_for_month(ytmusic, like_tracker, start, end):
                 played_counts[video_id] = played_counts.get(video_id, 0) + 1
                 played_count += 1
     # Only include songs played at least twice, unless they are liked
-    played_ids = {vid for vid, count in played_counts.items() if count >= 2}
-    all_ids = played_ids.union(liked_ids)
-    logger.info(f"Played IDs in month (played >=2): {len(played_ids)}")
+    played_multiple_times_ids = {vid for vid, count in played_counts.items() if count >= 2 and vid not in liked_ids}
+    logger.info(f"Played IDs in month (played >=2, not liked): {len(played_multiple_times_ids)}")
+    logger.info(f"Liked IDs in month: {len(liked_ids)}")
     logger.info(f"Disliked songs in month: {disliked_count}")
-    logger.info(f"Total unique songs for playlist (played >=2 or liked, not disliked): {len(all_ids)}")
-    return list(all_ids) 
+    logger.info(f"Total unique songs for playlist (played >=2 or liked, not disliked): {len(played_multiple_times_ids) + len(liked_ids)}")
+    return {
+        "played_multiple_times": list(played_multiple_times_ids),
+        "liked": list(liked_ids)
+    } 
